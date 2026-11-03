@@ -956,7 +956,8 @@ namespace RT64::WcwLogic {
     bool envSwitchOn(const char *value);
 
     // One window's numbers. Percentiles and the 1%-low rate need at least one present interval (hasIntervals); the
-    // GPU numbers need GPU timing rows (gpuRenderRows / gpuPresentRows).
+    // render GPU and RT numbers a game frame that completed in the window (gameFrames), the present GPU numbers
+    // GPU present rows (gpuPresentRows).
     // Deliberate differences from aki-run's numbers of the same name (aki-shot pacing, from wcw_present_lum.csv):
     // - hitches: above 2x the larger of the target frame time and the median interval; aki-shot counts above 1.5x
     //   the target, so a 30 fps scene on a 60 target counts every frame there and none here;
