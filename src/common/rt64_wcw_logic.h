@@ -956,7 +956,8 @@ namespace RT64::WcwLogic {
     bool envSwitchOn(const char *value);
 
     // One window's numbers. Percentiles and the 1%-low rate need at least one present interval (hasIntervals); the
-    // GPU numbers need GPU timing rows (gpuRenderRows / gpuPresentRows).
+    // render GPU and RT numbers a game frame that completed in the window (gameFrames), the present GPU numbers
+    // GPU present rows (gpuPresentRows).
     // Deliberate differences from aki-run's numbers of the same name (aki-shot pacing, from wcw_present_lum.csv):
     // - hitches: above 2x the larger of the target frame time and the median interval; aki-shot counts above 1.5x
     //   the target, so a 30 fps scene on a 60 target counts every frame there and none here;
@@ -981,7 +982,10 @@ namespace RT64::WcwLogic {
         double low1PctFps = 0.0;
         uint32_t hitches = 0;
         double hitchesPerMin = 0.0;
-        // Per GPU timing row (one recorded command list; medians as aki-shot perf / aki.run.perf.*).
+        // Per game frame, like aki.run.perf.* since aki-roadmap#176 / #178: a frame renders several workloads (No
+        // Mercy ~10, most of them tiny), so per-row medians read ~0 for a frame that traces for milliseconds. The
+        // render GPU ms (median, p95) and the RT build and trace ms are each the medians of the per-frame sums below;
+        // gpuRenderRows still counts the timing rows.
         uint32_t gpuRenderRows = 0;
         double gpuRenderMs = 0.0;
         double gpuRenderP95Ms = 0.0;
@@ -1021,17 +1025,18 @@ namespace RT64::WcwLogic {
         uint32_t generated = 0;
         uint32_t repeated = 0;
         std::vector<double> intervals;
-        std::vector<double> gpuRender;
-        std::vector<double> rtBuild;
-        std::vector<double> rtTrace;
+        uint32_t gpuRenderRows = 0;
         std::vector<double> gpuPresent;
         std::vector<double> frameGpu;
         std::vector<double> frameRt;
+        std::vector<double> frameRtBuild;
+        std::vector<double> frameRtTrace;
         // The game frame whose rows are arriving (kept across windows).
         bool frameOpen = false;
         uint64_t framePresentId = 0;
         double frameGpuSum = 0.0;
-        double frameRtSum = 0.0;
+        double frameRtBuildSum = 0.0;
+        double frameRtTraceSum = 0.0;
     };
 
     // Nearest-rank percentile (p in 0..1) of unsorted values; 0 for none.

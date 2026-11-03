@@ -137,7 +137,7 @@ TEST_CASE("dd window: the first interval spans the window boundary; take starts 
     CHECK(!c.hasIntervals);
 }
 
-TEST_CASE("dd window: GPU medians and p95 from the timing rows") {
+TEST_CASE("dd window: GPU medians and p95, one row per game frame") {
     DdFrameWindow w;
     w.start(0.0);
     for (int i = 1; i <= 20; i++) {
@@ -149,6 +149,7 @@ TEST_CASE("dd window: GPU medians and p95 from the timing rows") {
     w.addGpuPresent(2.0);
     const DdFrameStats s = w.take(1000.0, 60);
     CHECK_EQ(s.gpuRenderRows, 20u);
+    CHECK_EQ(s.gameFrames, 19u);
     CHECK_NEAR(s.gpuRenderMs, 10.0, 1e-9);
     CHECK_NEAR(s.gpuRenderP95Ms, 19.0, 1e-9);
     CHECK_NEAR(s.rtBuildMs, 0.5, 1e-9);
@@ -174,8 +175,9 @@ TEST_CASE("dd window: GPU per game frame sums the rows of one presentId, open fr
     CHECK_NEAR(s.gpuGameFrameMs, 4.0, 1e-9);
     CHECK_NEAR(s.gpuGameFrameP95Ms, 6.0, 1e-9);
     CHECK_NEAR(s.rtGameFrameMs, 0.0, 1e-9);
-    // The per-row median misses the one tracing row; the per-frame RT doesn't.
+    // The tracing row's RT counts for its frame (aki-roadmap#178): frame 7 traces 1.5 ms, frame 8 none; median of 2.
     CHECK_NEAR(s.rtTraceMs, 0.0, 1e-9);
+    CHECK_NEAR(s.gpuRenderMs, s.gpuGameFrameMs, 1e-9);
     w.addGpuRender(9, 5.0, 1.0, 2.0);
     w.addGpuRender(10, 1.0, 0.0, 0.0);
     s = w.take(2000.0, 60);
@@ -186,6 +188,35 @@ TEST_CASE("dd window: GPU per game frame sums the rows of one presentId, open fr
     CHECK_NEAR(metric(m, "aki.game.perf.gpu_game_frame_ms"), 15.0, 1e-9);
     CHECK_NEAR(metric(m, "aki.game.perf.rt_game_frame_ms"), 3.0, 1e-9);
     CHECK(hasMetric(m, "aki.game.perf.rt_trace_ms"));
+}
+
+TEST_CASE("dd window: rt_trace / rt_build / gpu_render are per game frame, not per row (aki-roadmap#178)") {
+    // No Mercy-like: each game frame renders ten workloads, one of them traced (3.6 ms trace, 0.4 ms build, 8 ms GPU),
+    // nine tiny ones (0.004 ms trace, 0.2 ms GPU). The per-row medians read 0.004 / 0 / 0.2 ms.
+    DdFrameWindow w;
+    w.start(0.0);
+    for (uint64_t frame = 1; frame <= 31; frame++) {
+        for (int k = 0; k < 10; k++) {
+            if (k == 3) {
+                w.addGpuRender(frame, 8.0, 0.4, 3.6);
+            }
+            else {
+                w.addGpuRender(frame, 0.2, 0.0, 0.004);
+            }
+        }
+    }
+
+    const DdFrameStats s = w.take(1000.0, 60);
+    CHECK_EQ(s.gpuRenderRows, 310u);
+    CHECK_EQ(s.gameFrames, 30u);
+    CHECK_NEAR(s.rtTraceMs, 3.6 + 9 * 0.004, 1e-9);
+    CHECK_NEAR(s.rtBuildMs, 0.4, 1e-9);
+    CHECK_NEAR(s.gpuRenderMs, 8.0 + 9 * 0.2, 1e-9);
+    CHECK_NEAR(s.gpuRenderP95Ms, 8.0 + 9 * 0.2, 1e-9);
+    CHECK_NEAR(s.rtGameFrameMs, 0.4 + 3.6 + 9 * 0.004, 1e-9);
+    const auto m = ddWindowMetrics(s, DdProcessSample());
+    CHECK_NEAR(metric(m, "aki.game.perf.rt_trace_ms"), 3.6 + 9 * 0.004, 1e-9);
+    CHECK_NEAR(metric(m, "aki.game.perf.gpu_render_ms"), 8.0 + 9 * 0.2, 1e-9);
 }
 
 TEST_CASE("dd: nearest-rank percentile") {
@@ -218,6 +249,7 @@ TEST_CASE("dd metrics: only gauges with data, RT ms only while ray tracing runs"
     s.hasIntervals = true;
     s.p99Ms = 17.0;
     s.gpuRenderRows = 5;
+    s.gameFrames = 2;
     s.gpuRenderMs = 4.0;
     p.has = true;
     p.privateMb = 900.0;
@@ -237,6 +269,13 @@ TEST_CASE("dd metrics: only gauges with data, RT ms only while ray tracing runs"
     m = ddWindowMetrics(s, p);
     CHECK_NEAR(metric(m, "aki.game.perf.rt_trace_ms"), 2.5, 1e-9);
     CHECK(hasMetric(m, "aki.game.perf.rt_build_ms"));
+    // Rows but no complete game frame yet (aki-roadmap#178): no per-frame gauges rather than a 0.
+    s.gameFrames = 0;
+    m = ddWindowMetrics(s, p);
+    CHECK(!hasMetric(m, "aki.game.perf.gpu_render_ms"));
+    CHECK(!hasMetric(m, "aki.game.perf.rt_trace_ms"));
+    s.gameFrames = 2;
+    m = ddWindowMetrics(s, p);
     // Every name is already a valid Datadog metric name.
     for (const auto &e : m) {
         CHECK(ddMetricName(e.first) == e.first);

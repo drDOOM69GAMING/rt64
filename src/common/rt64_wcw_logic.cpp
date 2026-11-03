@@ -1001,12 +1001,12 @@ namespace RT64::WcwLogic {
         windowStartMs = nowMs;
         presents = generated = repeated = 0;
         intervals.clear();
-        gpuRender.clear();
-        rtBuild.clear();
-        rtTrace.clear();
+        gpuRenderRows = 0;
         gpuPresent.clear();
         frameGpu.clear();
         frameRt.clear();
+        frameRtBuild.clear();
+        frameRtTrace.clear();
     }
 
     void DdFrameWindow::addPresent(double tMs, bool generatedFrame, bool repeatedFrame) {
@@ -1023,17 +1023,18 @@ namespace RT64::WcwLogic {
     void DdFrameWindow::addGpuRender(uint64_t presentId, double gpuMs, double rtBuildMs, double rtTraceMs) {
         if (frameOpen && (presentId != framePresentId)) {
             frameGpu.push_back(frameGpuSum);
-            frameRt.push_back(frameRtSum);
-            frameGpuSum = frameRtSum = 0.0;
+            frameRt.push_back(frameRtBuildSum + frameRtTraceSum);
+            frameRtBuild.push_back(frameRtBuildSum);
+            frameRtTrace.push_back(frameRtTraceSum);
+            frameGpuSum = frameRtBuildSum = frameRtTraceSum = 0.0;
         }
 
         frameOpen = true;
         framePresentId = presentId;
         frameGpuSum += gpuMs;
-        frameRtSum += rtBuildMs + rtTraceMs;
-        gpuRender.push_back(gpuMs);
-        rtBuild.push_back(rtBuildMs);
-        rtTrace.push_back(rtTraceMs);
+        frameRtBuildSum += rtBuildMs;
+        frameRtTraceSum += rtTraceMs;
+        gpuRenderRows++;
     }
 
     void DdFrameWindow::addGpuPresent(double gpuMs) {
@@ -1078,19 +1079,17 @@ namespace RT64::WcwLogic {
             s.hitchesPerMin = (s.seconds > 0.0) ? (s.hitches * 60.0 / s.seconds) : 0.0;
         }
 
-        s.gpuRenderRows = uint32_t(gpuRender.size());
-        if (!gpuRender.empty()) {
-            s.gpuRenderMs = ddPercentile(gpuRender, 0.50);
-            s.gpuRenderP95Ms = ddPercentile(gpuRender, 0.95);
-            s.rtBuildMs = ddPercentile(rtBuild, 0.50);
-            s.rtTraceMs = ddPercentile(rtTrace, 0.50);
-        }
-
+        s.gpuRenderRows = gpuRenderRows;
         s.gameFrames = uint32_t(frameGpu.size());
         if (!frameGpu.empty()) {
             s.gpuGameFrameMs = ddPercentile(frameGpu, 0.50);
             s.gpuGameFrameP95Ms = ddPercentile(frameGpu, 0.95);
             s.rtGameFrameMs = ddPercentile(frameRt, 0.50);
+            // Per game frame too (aki-roadmap#178): the same sums, so gpu_render_ms reads as gpu_game_frame_ms.
+            s.gpuRenderMs = s.gpuGameFrameMs;
+            s.gpuRenderP95Ms = s.gpuGameFrameP95Ms;
+            s.rtBuildMs = ddPercentile(frameRtBuild, 0.50);
+            s.rtTraceMs = ddPercentile(frameRtTrace, 0.50);
         }
 
         s.gpuPresentRows = uint32_t(gpuPresent.size());
@@ -1137,7 +1136,8 @@ namespace RT64::WcwLogic {
             put("pacing.hitches_per_min", s.hitchesPerMin);
         }
 
-        if (s.gpuRenderRows > 0) {
+        // Per game frame (aki-roadmap#178): only once a game frame's rows all landed in the window.
+        if (s.gameFrames > 0) {
             put("perf.gpu_render_ms", s.gpuRenderMs);
             put("perf.gpu_render_p95_ms", s.gpuRenderP95Ms);
             // Only with ray tracing running: 0 ms with it off would read as free RT on a dashboard.
