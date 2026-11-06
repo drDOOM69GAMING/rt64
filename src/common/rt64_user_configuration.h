@@ -83,6 +83,15 @@ namespace RT64 {
             OptionCount
         };
 
+        enum class CRTFilter {
+            Off,
+            Scanlines,
+            ApertureGrille,
+            ShadowMask,
+            SlotMask,
+            OptionCount
+        };
+
         GraphicsAPI graphicsAPI;
         Resolution resolution;
         DisplayBuffering displayBuffering;
@@ -100,6 +109,11 @@ namespace RT64 {
         int refreshRateTarget;
         InternalColorFormat internalColorFormat;
         HardwareResolve hardwareResolve;
+        CRTFilter crtFilter;
+        double crtScanlineIntensity;
+        double crtMaskIntensity;
+        double crtCurvature;
+        double crtVignette;
         bool idleWorkActive;
         bool developerMode;
 
@@ -168,6 +182,14 @@ namespace RT64 {
         { UserConfiguration::HardwareResolve::Disabled, "Disabled" },
         { UserConfiguration::HardwareResolve::Enabled, "Enabled" },
         { UserConfiguration::HardwareResolve::Automatic, "Automatic" }
+    });
+
+    NLOHMANN_JSON_SERIALIZE_ENUM(UserConfiguration::CRTFilter, {
+        { UserConfiguration::CRTFilter::Off, "Off" },
+        { UserConfiguration::CRTFilter::Scanlines, "Scanlines" },
+        { UserConfiguration::CRTFilter::ApertureGrille, "ApertureGrille" },
+        { UserConfiguration::CRTFilter::ShadowMask, "ShadowMask" },
+        { UserConfiguration::CRTFilter::SlotMask, "SlotMask" }
     });
 
     struct ConfigurationJSON {

@@ -73,10 +73,16 @@ namespace RT64 {
         p.commandList->setViewports(viewport);
         p.commandList->setScissors(scissor);
 
-        interop::VideoInterfaceCB pushConstants;
+        interop::VideoInterfaceCB pushConstants{};
         pushConstants.videoResolution = computeHDSize(hlslpp::float2(p.vi->fbSize()), p.resolutionScale, p.downsamplingScale);
         pushConstants.textureResolution = { float(p.textureWidth), float(p.textureHeight) };
+        pushConstants.sourceResolution = { float(p.vi->fbSize().x), float(p.vi->fbSize().y) };
         pushConstants.gamma = p.vi->gamma();
+        pushConstants.crtMode = static_cast<interop::uint>(p.crtFilter);
+        pushConstants.crtScanlineIntensity = p.crtScanlineIntensity;
+        pushConstants.crtMaskIntensity = p.crtMaskIntensity;
+        pushConstants.crtCurvature = p.crtCurvature;
+        pushConstants.crtVignette = p.crtVignette;
         // [wcw] DIAGNOSTIC: the shader samples with a BORDER sampler (out of range = black).
         // Log the size math to catch a VI-vs-texture mismatch producing an all-border quad.
         { static int vr = 0; static const bool wcwTrace = getenv("WCW_TRACE") != nullptr; if (wcwTrace && (vr++ % 120) == 0) {

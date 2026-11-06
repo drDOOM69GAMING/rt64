@@ -27,6 +27,11 @@ namespace RT64 {
         j["refreshRateTarget"] = cfg.refreshRateTarget;
         j["internalColorFormat"] = cfg.internalColorFormat;
         j["hardwareResolve"] = cfg.hardwareResolve;
+        j["crtFilter"] = cfg.crtFilter;
+        j["crtScanlineIntensity"] = cfg.crtScanlineIntensity;
+        j["crtMaskIntensity"] = cfg.crtMaskIntensity;
+        j["crtCurvature"] = cfg.crtCurvature;
+        j["crtVignette"] = cfg.crtVignette;
         j["idleWorkActive"] = cfg.idleWorkActive;
         j["developerMode"] = cfg.developerMode;
     }
@@ -50,6 +55,11 @@ namespace RT64 {
         cfg.refreshRateTarget = j.value("refreshRateTarget", defaultCfg.refreshRateTarget);
         cfg.internalColorFormat = j.value("internalColorFormat", defaultCfg.internalColorFormat);
         cfg.hardwareResolve = j.value("hardwareResolve", defaultCfg.hardwareResolve);
+        cfg.crtFilter = j.value("crtFilter", defaultCfg.crtFilter);
+        cfg.crtScanlineIntensity = j.value("crtScanlineIntensity", defaultCfg.crtScanlineIntensity);
+        cfg.crtMaskIntensity = j.value("crtMaskIntensity", defaultCfg.crtMaskIntensity);
+        cfg.crtCurvature = j.value("crtCurvature", defaultCfg.crtCurvature);
+        cfg.crtVignette = j.value("crtVignette", defaultCfg.crtVignette);
         cfg.idleWorkActive = j.value("idleWorkActive", defaultCfg.idleWorkActive);
         cfg.developerMode = j.value("developerMode", defaultCfg.developerMode);
     }
@@ -81,6 +91,11 @@ namespace RT64 {
         refreshRateTarget = 60;
         internalColorFormat = InternalColorFormat::Automatic;
         hardwareResolve = HardwareResolve::Automatic;
+        crtFilter = CRTFilter::Off;
+        crtScanlineIntensity = 0.45;
+        crtMaskIntensity = 0.45;
+        crtCurvature = 0.0;
+        crtVignette = 0.0;
         idleWorkActive = true;
         developerMode = false;
     }
@@ -97,11 +112,16 @@ namespace RT64 {
         clampEnum<RefreshRate>(refreshRate);
         clampEnum<InternalColorFormat>(internalColorFormat);
         clampEnum<HardwareResolve>(hardwareResolve);
+        clampEnum<CRTFilter>(crtFilter);
         resolutionMultiplier = std::clamp<double>(resolutionMultiplier, 0.0f, ResolutionMultiplierLimit);
         downsampleMultiplier = std::clamp<int>(downsampleMultiplier, 1, ResolutionMultiplierLimit);
         aspectTarget = std::clamp<double>(aspectTarget, 0.1f, 100.0f);
         extAspectTarget = std::clamp<double>(extAspectTarget, 0.1f, 100.0f);
         refreshRateTarget = std::clamp<int>(refreshRateTarget, 10, 1000);
+        crtScanlineIntensity = std::clamp<double>(crtScanlineIntensity, 0.0, 1.0);
+        crtMaskIntensity = std::clamp<double>(crtMaskIntensity, 0.0, 1.0);
+        crtCurvature = std::clamp<double>(crtCurvature, 0.0, 1.0);
+        crtVignette = std::clamp<double>(crtVignette, 0.0, 1.0);
 
         if (!isGraphicsAPISupported(graphicsAPI)) {
             graphicsAPI = GraphicsAPI::Automatic;

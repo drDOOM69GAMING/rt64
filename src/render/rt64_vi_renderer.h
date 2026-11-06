@@ -27,6 +27,11 @@ namespace RT64 {
             uint32_t textureWidth = 0;
             uint32_t textureHeight = 0;
             UserConfiguration::Filtering filtering = UserConfiguration::Filtering::Linear;
+            UserConfiguration::CRTFilter crtFilter = UserConfiguration::CRTFilter::Off;
+            float crtScanlineIntensity = 0.0f;
+            float crtMaskIntensity = 0.0f;
+            float crtCurvature = 0.0f;
+            float crtVignette = 0.0f;
             const VI *vi = nullptr;
             bool removeBlackBorders = false;
         };
